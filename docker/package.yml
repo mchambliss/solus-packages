@@ -1,0 +1,80 @@
+name       : docker
+version    : 17.12.1
+release    : 12
+source     :
+    - git|https://github.com/docker/docker-ce.git : v17.12.1-ce
+    - git|https://github.com/docker/libnetwork.git : 7f6d3097094c7d6c14fa57ff313a47529cbafb77
+license    : Apache-2.0
+component  : virt
+summary    : Open source application container engine
+strip      : no
+description: |
+    Docker is an open source project to pack, ship and run any application as a lightweight container.
+
+    Docker containers are both hardware-agnostic and platform-agnostic. This means they can run anywhere, from your laptop to the largest cloud compute instance and everything in between - and they don't require you to use a particular language, framework or packaging system. That makes them great building blocks for deploying and scaling web apps, databases, and backend services without depending on a particular stack or provider.
+builddeps  :
+    - pkgconfig(devmapper)
+    - btrfs-progs-devel
+    - golang
+rundeps    :
+    - btrfs-progs
+    - containerd
+    - dnsmasq
+    - runc
+setup      : |
+    %patch -p1 < $pkgfiles/0001-Default-to-using-overlayfs.patch
+build      : |
+    mkdir -p src/github.com/docker
+    export GOPATH=`pwd`
+    unset LDFLAGS
+
+    # Build proxy
+    ln -sv $sources/libnetwork.git src/github.com/docker/libnetwork
+    go build -o docker-proxy github.com/docker/libnetwork/cmd/proxy
+    rm -v src/github.com/docker/libnetwork
+
+    # Build daemon
+    pushd components/engine
+    export DOCKER_GITCOMMIT="7390fc6103da41cf98ae66cfac80fa143268bf60"
+    export AUTO_GOPATH=1
+    ./hack/make.sh dynbinary
+    popd
+
+    # Build CLI
+    ln -sv `pwd`/components/cli src/github.com/docker
+    pushd components/cli
+    ./scripts/build/dynbinary
+install    : |
+    # Required directories
+    install -D -d -m 00755 $installdir/usr/bin
+    install -D -d -m 00755 $installdir/%libdir%/systemd/system
+
+    # Install docker client
+    pushd components/cli
+    install -m 00755 build/docker-linux-amd64 $installdir/usr/bin/docker
+    popd
+
+    # Main docker daemon
+    pushd components/engine
+    install -m 00755 bundles/dynbinary-daemon/dockerd $installdir/usr/bin/dockerd
+    popd
+
+    # Now install proxy service
+    install -m 00755 $workdir/docker-proxy $installdir/usr/bin/docker-proxy
+
+    # Now install systemd units
+    install -m 00644 components/packaging/deb/systemd/docker.service $installdir/%libdir%/systemd/system/.
+    install -m 00644 components/packaging/deb/systemd/docker.socket $installdir/%libdir%/systemd/system/.
+
+    # Enable socket activation by default
+    install -D -d -m 00755 $installdir/%libdir%/systemd/system/sockets.target.wants
+    ln -sv ../docker.socket $installdir/%libdir%/systemd/system/sockets.target.wants/docker.socket
+
+    # Add the docker group
+    install -D -m 00644 $pkgfiles/docker.sysusers $installdir/%libdir%/sysusers.d/docker.conf
+
+    # containerd integration
+    ln -s containerd $installdir/usr/bin/docker-containerd
+    ln -s containerd-shim $installdir/usr/bin/docker-containerd-shim
+    ln -s ctr $installdir/usr/bin/docker-containerd-ctr
+    ln -s runc $installdir/usr/bin/docker-runc
