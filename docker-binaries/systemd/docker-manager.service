@@ -3,6 +3,4 @@ Description=Upgrades Docker images and cleans up after itself
 
 [Service]
 Type=oneshot
-User=root
-Group=docker
-ExecStart=/root/bin/docker-stack-upgrade
+ExecStart=/root/bin/docker-stack-update
