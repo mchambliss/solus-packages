@@ -28,12 +28,12 @@ else
   echo 'DOCKER_OPTS="--config-file=/etc/docker/daemon.json"' > /etc/default/docker
 
   # From: https://github.com/moby/moby/tree/master/contrib/init/systemd
-  cp docker.socket /usr/lib64/systemd/system
-  cp docker.service /usr/lib64/systemd/system
+  cp ./systemd/docker.socket /usr/lib64/systemd/system
+  cp ./systemd/docker.service /usr/lib64/systemd/system
 
   # User overlay2
   mkdir -p /etc/docker
-  cp daemon.json /etc/docker
+  cp ./config/daemon.json /etc/docker
   
   systemctl enable docker.socket
   systemctl enable docker.service
@@ -44,7 +44,7 @@ else
 fi
 
 # Extract and install
-tar zxvf $PACKAGE -C /usr/bin --strip-components=1
+tar xzvf $PACKAGE -C /usr/bin --strip-components=1
 rm $PACKAGE
 
 systemctl start docker
