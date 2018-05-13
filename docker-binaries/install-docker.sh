@@ -9,10 +9,9 @@ fi
 command -v jq >/dev/null 2>&1 || { echo >&2 "jq required but it's not installed.  Aborting."; exit 1; }
 
 # Get the latest binaries based on github releases
-VERSION=$(curl -s https://api.github.com/repos/docker/docker-ce/releases/latest | jq -r ".tag_name")
-VERSION=${VERSION/v/}
+VERSION=$(curl -s https://api.github.com/repos/docker/docker-ce/releases/latest | jq -r ".name")
 PACKAGE=docker-$VERSION.tgz
-RELEASE_URL=https://download.docker.com/linux/static/stable/x86_64/$PACKAGE
+RELEASE_URL=https://download.docker.com/linux/static/edge/x86_64/$PACKAGE
 wget $RELEASE_URL
 
 if [ ! -f $PACKAGE ]; then
